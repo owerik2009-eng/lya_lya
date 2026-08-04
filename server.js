@@ -276,9 +276,10 @@ app.delete('/api/cash-payments/:id', (req, res) => {
     db.prepare('DELETE FROM cash_payments WHERE id = ?').run(req.params.id);
     res.json({ success: true });
   } catch (err) {
+    console.error('❌ Ошибка удаления:', err);
     res.status(500).json({ error: err.message });
   }
-});
+});;
   {
   try {
     db.prepare('DELETE FROM cash_payments WHERE id = ?').run(req.params.id);

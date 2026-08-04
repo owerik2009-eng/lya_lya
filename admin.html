@@ -231,36 +231,50 @@
       </div>
 
       <!-- Форма наличной оплаты -->
-      <div class="panel">
-        <div class="panel-header">
-          <h2>💵 Наличная оплата</h2>
-        </div>
-        <form id="cashPaymentForm" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px;">
-          <div class="form-group">
-            <label>Имя клиента:</label>
-            <input type="text" id="cashClientName" required placeholder="Иван Иванов">
-          </div>
-          <div class="form-group">
-            <label>Телефон:</label>
-            <input type="tel" id="cashClientPhone" placeholder="+7 (___) ___-__-__">
-          </div>
-          <div class="form-group">
-            <label>Услуга:</label>
-            <input type="text" id="cashService" placeholder="Свободная игра">
-          </div>
-          <div class="form-group">
-            <label>Сумма (₽):</label>
-            <input type="number" id="cashAmount" required min="1" placeholder="500">
-          </div>
-          <div class="form-group" style="grid-column: 1 / -1;">
-            <label>Комментарий:</label>
-            <input type="text" id="cashComment" placeholder="Необязательно">
-          </div>
-          <div style="grid-column: 1 / -1;">
-            <button type="submit" class="btn btn-success" style="width:100%; padding:12px;">💵 Добавить оплату наличными</button>
-          </div>
-        </form>
+      <!-- Умная форма оплаты -->
+<div class="panel">
+  <div class="panel-header"><h2>💳 Провести оплату</h2></div>
+  <form id="paymentForm" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px;">
+    <div class="form-group" style="grid-column: 1 / -1;">
+      <label>Тип операции:</label>
+      <select id="paymentType" onchange="togglePaymentFields()" style="width:100%; padding:10px; border:2px solid var(--pink); border-radius:10px; font-weight:600;">
+        <option value="new">➕ Новый клиент (Оплата + Старт сеанса)</option>
+        <option value="existing"> Оплата по существующей записи</option>
+      </select>
+    </div>
+
+    <div id="walkInFields" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px; grid-column: 1 / -1; background:#f8f9fa; padding:15px; border-radius:10px;">
+      <div class="form-group"><label>Имя ребенка:</label><input type="text" id="walkInChildName" placeholder="Маша"></div>
+      <div class="form-group"><label>Количество детей:</label><input type="number" id="walkInKids" value="1" min="1"></div>
+    </div>
+
+    <div id="existingFields" style="display:none; grid-column: 1 / -1;">
+      <div class="form-group">
+        <label>Выберите активный сеанс:</label>
+        <select id="activeSessionSelect" onchange="autoFillPaymentForm()" style="width:100%; padding:10px; border:2px solid #eee; border-radius:10px;">
+          <option value="">-- Выберите ребенка --</option>
+        </select>
       </div>
+    </div>
+
+    <div class="form-group">
+      <label>Способ оплаты:</label>
+      <select id="paymentMethod" style="width:100%; padding:10px; border:2px solid #eee; border-radius:10px;">
+        <option value="cash">💵 Наличные</option>
+        <option value="card">💳 Терминал (Карта)</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Имя родителя:</label><input type="text" id="payClientName" required placeholder="Иван Иванов"></div>
+    <div class="form-group"><label>Телефон:</label><input type="tel" id="payClientPhone" placeholder="+7..."></div>
+    <div class="form-group"><label>Услуга:</label><input type="text" id="payService" placeholder="Свободная игра"></div>
+    <div class="form-group"><label>Сумма (₽):</label><input type="number" id="payAmount" required min="1" placeholder="500"></div>
+    <div class="form-group" style="grid-column: 1 / -1;"><label>Комментарий:</label><input type="text" id="payComment" placeholder="Необязательно"></div>
+    
+    <div style="grid-column: 1 / -1;">
+      <button type="submit" class="btn btn-success" style="width:100%; padding:14px; font-size:16px; font-weight:bold;">✅ Провести оплату и запустить таймер</button>
+    </div>
+  </form>
+</div>
 
       <!-- Итог дня -->
       <div class="panel" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">

@@ -186,36 +186,87 @@ app.post('/api/bonus', (req, res) => {
 });
 
 app.get('/api/bonus/log', (req, res) => res.json(db.prepare('SELECT * FROM bonus_history WHERE admin = 1 ORDER BY created_at DESC LIMIT 50').all()));
+// ===== API: Оплата (Наличные / Терминал / Новый клиент) =====
 
-// ===== API: Наличные оплаты и Итог дня =====
+// 1. Оплата существующей записи
 app.post('/api/cash-payments', (req, res) => {
   try {
-    const { client_name, client_phone, amount, service, comment } = req.body;
+    const { client_name, client_phone, amount, service, comment, booking_id, payment_method } = req.body;
     if (!client_name || !amount) return res.status(400).json({ error: 'Укажите имя и сумму' });
-    const stmt = db.prepare('INSERT INTO cash_payments (client_name, client_phone, amount, service, comment) VALUES (?, ?, ?, ?, ?)');
-    stmt.run(client_name, client_phone || '', amount, service || '', comment || '');
-    res.json({ success: true, id: stmt.lastInsertRowid });
+
+    db.prepare(`INSERT INTO cash_payments (client_name, client_phone, amount, service, comment, booking_id, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
+      client_name, client_phone || '', amount, service || '', comment || '', booking_id || null, payment_method || 'cash'
+    );
+
+    if (booking_id) {
+      const newStatus = payment_method === 'card' ? 'confirmed' : 'done';
+      db.prepare('UPDATE bookings SET paid = 1, status = ? WHERE id = ?').run(newStatus, booking_id);
+    }
+    res.json({ success: true });
   } catch (err) {
-    console.error('❌ Ошибка наличной оплаты:', err);
+    console.error('❌ Ошибка оплаты:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
+// 2. НОВЫЙ КЛИЕНТ: Оплата + Мгновенный старт сеанса
+app.post('/api/start-walkin-session', (req, res) => {
+  try {
+    const { client_name, child_name, client_phone, service, amount, kids, comment, payment_method } = req.body;
+    if (!client_name || !child_name || !amount) return res.status(400).json({ error: 'Заполните имя родителя, ребенка и сумму' });
+
+    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const timeStr = now.toTimeString().slice(0, 5);
+
+    const bookingStmt = db.prepare(`
+      INSERT INTO bookings (service, price, name, phone, child, date, time, kids, comment, status, paid)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', 1)
+    `);
+    const result = bookingStmt.run(service, amount, client_name, client_phone || '', child_name, today, timeStr, kids || 1, comment || '');
+    const bookingId = result.lastInsertRowid;
+
+    db.prepare(`
+      INSERT INTO cash_payments (client_name, client_phone, amount, service, comment, booking_id, payment_method)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(client_name, client_phone || '', amount, service || '', comment || '', bookingId, payment_method || 'cash');
+
+    // Начисление бонусов
+    if (amount > 0 && client_phone) {
+      const exists = db.prepare('SELECT 1 FROM users WHERE phone = ?').get(client_phone);
+      if (!exists) {
+        db.prepare('INSERT INTO users (phone, balance) VALUES (?, 100)').run(client_phone);
+        db.prepare('INSERT INTO bonus_history (phone, type, amount, description) VALUES (?, ?, ?, ?)').run(client_phone, 'plus', 100, 'Регистрация');
+      }
+      const bonus = Math.floor(amount * 0.1);
+      const user = db.prepare('SELECT balance FROM users WHERE phone = ?').get(client_phone);
+      if (user) {
+        db.prepare('UPDATE users SET balance = ? WHERE phone = ?').run(user.balance + bonus, client_phone);
+        db.prepare('INSERT INTO bonus_history (phone, type, amount, description) VALUES (?, ?, ?, ?)').run(client_phone, 'plus', bonus, `Оплата сеанса #${bookingId}`);
+      }
+    }
+    res.json({ success: true, bookingId });
+  } catch (err) {
+    console.error('❌ Ошибка старта сеанса:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. Итог дня
 app.get('/api/today-income', (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
-    const bookingsRow = db.prepare(`SELECT COALESCE(SUM(price), 0) as total FROM bookings WHERE date = ? AND status IN ('confirmed', 'done') AND paid = 1`).get(today);
+    const onlineRow = db.prepare(`SELECT COALESCE(SUM(price), 0) as total FROM bookings WHERE date = ? AND paid = 1`).get(today);
     const cashRow = db.prepare(`SELECT COALESCE(SUM(amount), 0) as total FROM cash_payments WHERE DATE(created_at) = ?`).get(today);
     const cashPayments = db.prepare(`SELECT * FROM cash_payments WHERE DATE(created_at) = ? ORDER BY created_at DESC`).all(today);
     
     res.json({
-      bookingsIncome: bookingsRow ? bookingsRow.total : 0,
-      cashIncome: cashRow ? cashRow.total : 0,
-      totalIncome: (bookingsRow ? bookingsRow.total : 0) + (cashRow ? cashRow.total : 0),
+      onlineIncome: onlineRow ? onlineRow.total : 0,
+      cashTerminalIncome: cashRow ? cashRow.total : 0,
+      totalIncome: (onlineRow ? onlineRow.total : 0) + (cashRow ? cashRow.total : 0),
       cashPayments: cashPayments || []
     });
   } catch (err) {
-    console.error('❌ Ошибка /api/today-income:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -225,10 +276,18 @@ app.delete('/api/cash-payments/:id', (req, res) => {
     db.prepare('DELETE FROM cash_payments WHERE id = ?').run(req.params.id);
     res.json({ success: true });
   } catch (err) {
-    console.error('❌ Ошибка удаления:', err);
     res.status(500).json({ error: err.message });
   }
 });
+  {
+  try {
+    db.prepare('DELETE FROM cash_payments WHERE id = ?').run(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('❌ Ошибка удаления:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
 
 // ===== API: Статистика =====
 app.get('/api/stats', (req, res) => {

@@ -248,29 +248,13 @@ app.post('/api/start-walkin-session', (req, res) => {
     res.json({ success: true, bookingId });
   } catch (err) {
     console.error('❌ Ошибка старта сеанса:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 3. Итог дня
-app.get('/api/today-income', (req, res) => {
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    const onlineRow = db.prepare(`SELECT COALESCE(SUM(price), 0) as total FROM bookings WHERE date = ? AND paid = 1`).get(today);
-    const cashRow = db.prepare(`SELECT COALESCE(SUM(amount), 0) as total FROM cash_payments WHERE DATE(created_at) = ?`).get(today);
-    const cashPayments = db.prepare(`SELECT * FROM cash_payments WHERE DATE(created_at) = ? ORDER BY created_at DESC`).all(today);
-    
-    res.json({
-      onlineIncome: onlineRow ? onlineRow.total : 0,
-      cashTerminalIncome: cashRow ? cashRow.total : 0,
-      totalIncome: (onlineRow ? onlineRow.total : 0) + (cashRow ? cashRow.total : 0),
-      cashPayments: cashPayments || []
-    });
   } catch (err) {
+    console.error('❌ Ошибка:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
+// ===== API: Удаление записи об оплате =====
 app.delete('/api/cash-payments/:id', (req, res) => {
   try {
     db.prepare('DELETE FROM cash_payments WHERE id = ?').run(req.params.id);
@@ -279,16 +263,8 @@ app.delete('/api/cash-payments/:id', (req, res) => {
     console.error('❌ Ошибка удаления:', err);
     res.status(500).json({ error: err.message });
   }
-});;
-  {
-  try {
-    db.prepare('DELETE FROM cash_payments WHERE id = ?').run(req.params.id);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('❌ Ошибка удаления:', err);
-    res.status(500).json({ error: err.message });
-  }
-};
+});
+
 
 // ===== API: Статистика =====
 app.get('/api/stats', (req, res) => {

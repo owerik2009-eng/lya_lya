@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Оплата прошла успешно! | Ляля</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+  .success-card {
+    background: white;
+    border-radius: 30px;
+    padding: 50px;
+    max-width: 500px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: slideUp 0.5s;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .success-icon {
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(135deg, #4ade80, #6bcb77);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 25px;
+    font-size: 60px;
+    animation: scaleIn 0.5s 0.3s;
+  }
+  @keyframes scaleIn {
+    from { transform: scale(0); }
+    to { transform: scale(1); }
+  }
+  h1 {
+    color: #6bcb77;
+    font-size: 32px;
+    margin-bottom: 15px;
+  }
+  p {
+    color: #666;
+    font-size: 16px;
+    margin-bottom: 10px;
+    line-height: 1.6;
+  }
+  .bonus-info {
+    background: linear-gradient(135deg, #ffd93d, #ff6b9d);
+    color: white;
+    padding: 20px;
+    border-radius: 15px;
+    margin: 25px 0;
+  }
+  .bonus-info h3 {
+    font-size: 24px;
+    margin-bottom: 10px;
+  }
+  .btn {
+    display: inline-block;
+    background: linear-gradient(45deg, #6bcb77, #4ade80);
+    color: white;
+    padding: 15px 40px;
+    border-radius: 25px;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 16px;
+    margin-top: 20px;
+    transition: transform 0.2s;
+  }
+  .btn:hover {
+    transform: translateY(-2px);
+  }
+  .loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255,255,255,0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 1s linear infinite;
+    margin-left: 10px;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
+</head>
+<body>
+  <div class="success-card">
+    <div class="success-icon">✅</div>
+    <h1>Оплата прошла успешно!</h1>
+    <p>Ваша запись подтверждена</p>
+    <p>Мы отправили уведомление администратору</p>
+    
+    <div class="bonus-info">
+      <h3>🎁 Вам начислены бонусы!</h3>
+      <p>10% от суммы оплаты добавлено на ваш счёт</p>
+      <p>Используйте их при следующем посещении</p>
+    </div>
+    
+    <p id="statusText">Проверка платежа<span class="loading"></span></p>
+    
+    <a href="/index.html" class="btn">Вернуться на главную</a>
+  </div>
+
+  <script>
+    // Получаем параметры из URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentId = urlParams.get('paymentId');
+    const bookingId = urlParams.get('bookingId');
+
+    // Проверяем статус платежа
+    async function checkPaymentStatus() {
+      try {
+        const response = await fetch(`/api/payment-status/${paymentId}`);
+        const data = await response.json();
+        
+        if (data.success && data.status === 'paid') {
+          document.getElementById('statusText').innerHTML = '✅ Платёж подтверждён!';
+          document.getElementById('statusText').style.color = '#6bcb77';
+          
+          // Показываем уведомление о бонусах
+          setTimeout(() => {
+            alert('🎉 Поздравляем!\n\nВам начислены бонусы за оплату.\nТеперь вы можете использовать их при следующей записи.');
+          }, 1000);
+        } else {
+          document.getElementById('statusText').innerHTML = ' Ожидаем подтверждения...';
+          setTimeout(checkPaymentStatus, 3000); // Проверяем каждые 3 секунды
+        }
+      } catch (err) {
+        console.error('Ошибка проверки:', err);
+        document.getElementById('statusText').innerHTML = '⚠️ Ошибка проверки платежа';
+        document.getElementById('statusText').style.color = '#ff6b6b';
+      }
+    }
+
+    if (paymentId) {
+      checkPaymentStatus();
+    }
+  </script>
+</body>
+</html>

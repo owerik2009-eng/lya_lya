@@ -229,6 +229,60 @@
         <div class="panel-header"><h2> Ближайшие записи</h2><button class="btn btn-primary" onclick="switchTab('bookings')">Все записи →</button></div>
         <div id="upcomingBookings"></div>
       </div>
+            <!-- ===== ПАНЕЛЬ БЫСТРОГО СОЗДАНИЯ ЗАПИСИ (ПО ТЕЛЕФОНУ) ===== -->
+      <div class="panel" style="border: 2px solid var(--mint);">
+        <div class="panel-header"><h2>📞 Добавить запись (по телефону)</h2></div>
+        <form id="adminBookingForm" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Услуга:</label>
+            <select id="adminService" required style="width:100%; padding:10px; border:2px solid #eee; border-radius:10px;">
+              <option value="">-- Выберите услугу --</option>
+              <option value="Свободная игра (будни)" data-price="300">Свободная игра (будни) — 300 ₽</option>
+              <option value="Свободная игра (выходные)" data-price="350">Свободная игра (выходные) — 350 ₽</option>
+              <option value="Акция 1+1 час" data-price="550">Акция недели: 1+1 час — 550 ₽</option>
+              <option value="Абонемент 5 посещений" data-price="1300">Абонемент (5 посещений) — 1300 ₽</option>
+              <option value="День рождения" data-price="8000">День рождения (2 часа) — от 8000 ₽</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Цена (₽):</label>
+            <input type="number" id="adminPrice" required min="0" style="width:100%; padding:10px; border:2px solid #eee; border-radius:10px;">
+          </div>
+          <div class="form-group">
+            <label>Имя родителя:</label>
+            <input type="text" id="adminName" required placeholder="Иванова Мария" style="width:100%; padding:10px; border:2px solid #eee; border-radius:10px;">
+          </div>
+          <div class="form-group">
+            <label>Телефон:</label>
+            <input type="tel" id="adminPhone" required placeholder="+7 (999) 123-45-67" style="width:100%; padding:10px; border:2px solid #eee; border-radius:10px;">
+          </div>
+          <div class="form-group">
+            <label>Имя и возраст ребёнка:</label>
+            <input type="text" id="adminChild" required placeholder="Маша, 5 лет" style="width:100%; padding:10px; border:2px solid #eee; border-radius:10px;">
+          </div>
+          <div class="form-group">
+            <label>Количество детей:</label>
+            <input type="number" id="adminKids" min="1" max="15" value="1" required style="width:100%; padding:10px; border:2px solid #eee; border-radius:10px;">
+          </div>
+          <div class="form-group">
+            <label>Дата:</label>
+            <input type="date" id="adminDate" required style="width:100%; padding:10px; border:2px solid #eee; border-radius:10px;">
+          </div>
+          <div class="form-group">
+            <label>Время:</label>
+            <input type="time" id="adminTime" min="08:00" max="20:00" required style="width:100%; padding:10px; border:2px solid #eee; border-radius:10px;">
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Комментарий:</label>
+            <input type="text" id="adminComment" placeholder="Особые пожелания..." style="width:100%; padding:10px; border:2px solid #eee; border-radius:10px;">
+          </div>
+          <div style="grid-column: 1 / -1; display: flex; gap: 10px; margin-top: 10px;">
+            <button type="submit" class="btn btn-success" style="flex: 1; padding: 12px; font-size: 16px; font-weight: bold;">✅ Создать запись</button>
+            <button type="reset" class="btn btn-ghost" style="padding: 12px 24px;">Очистить</button>
+          </div>
+        </form>
+      </div>
+      <!-- ===== КОНЕЦ ПАНЕЛИ БЫСТРОЙ ЗАПИСИ ===== -->
 
       <!-- Форма наличной оплаты -->
       <!-- Умная форма оплаты -->
@@ -481,6 +535,7 @@ async function refreshAll() {
 }
 
 // ===== СТАТИСТИКА =====
+
 async function updateStats() {
   try {
     const s = await API.getStats();
@@ -1025,6 +1080,64 @@ window.deleteCashPayment = async function(id) {
 if (document.getElementById('adminWrap')) {
   checkActiveSessions();
   setInterval(checkActiveSessions, 30000);
+}
+// ===== БЫСТРОЕ СОЗДАНИЕ ЗАПИСИ (АДМИН) =====
+// Автозаполнение цены при выборе услуги
+const adminServiceSelect = document.getElementById('adminService');
+if (adminServiceSelect) {
+  adminServiceSelect.addEventListener('change', function() {
+    const selected = this.options[this.selectedIndex];
+    const price = selected.getAttribute('data-price');
+    if (price) {
+      document.getElementById('adminPrice').value = price;
+    } else {
+      document.getElementById('adminPrice').value = '';
+    }
+  });
+}
+
+// Обработка отправки формы
+const adminBookingForm = document.getElementById('adminBookingForm');
+if (adminBookingForm) {
+  adminBookingForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const serviceSelect = document.getElementById('adminService');
+    const selectedOption = serviceSelect.options[serviceSelect.selectedIndex];
+    
+    const bookingData = {
+      service: selectedOption.value,
+      price: parseInt(document.getElementById('adminPrice').value),
+      name: document.getElementById('adminName').value,
+      phone: document.getElementById('adminPhone').value,
+      child: document.getElementById('adminChild').value,
+      kids: parseInt(document.getElementById('adminKids').value),
+      date: document.getElementById('adminDate').value,
+      time: document.getElementById('adminTime').value,
+      comment: document.getElementById('adminComment').value
+    };
+
+    try {
+      const res = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bookingData)
+      });
+      
+      const result = await res.json();
+      
+      if (result.success) {
+        showToast('✅ Запись создана! + ' + (result.booking.bonusEarned || 0) + ' бонусов');
+        adminBookingForm.reset(); // Очистить форму
+        refreshAll(); // Обновить статистику и списки на экране
+      } else {
+        showToast('⚠️ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+      }
+    } catch (err) {
+      console.error('Ошибка создания записи:', err);
+      showToast('⚠️ Ошибка при создании записи');
+    }
+  });
 }
 </script>
 </body>

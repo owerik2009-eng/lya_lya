@@ -496,6 +496,7 @@ async function doLogin() {
     if (result.success) {
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('adminWrap').classList.add('active');
+           localStorage.setItem('adminAuth', 'true');
       refreshAll();
     } else { errorEl.style.display = 'block'; }
   } catch (err) { errorEl.textContent = 'Ошибка соединения'; errorEl.style.display = 'block'; }
@@ -506,6 +507,7 @@ function logout() {
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('adminLogin').value = '';
   document.getElementById('adminPass').value = '';
+   localStorage.removeItem('adminAuth');
 }
 
 // ===== ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК =====
@@ -1075,6 +1077,13 @@ window.deleteCashPayment = async function(id) {
     showToast('️ Ошибка при удалении', 'warn');
   }
 };
+
+// ===== АВТОПРОВЕРКА АВТОРИЗАЦИИ ПРИ ЗАГРУЗКЕ =====
+if (localStorage.getItem('adminAuth') === 'true') {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('adminWrap').classList.add('active');
+  refreshAll();
+}
 
 // Запуск проверки при загрузке
 if (document.getElementById('adminWrap')) {

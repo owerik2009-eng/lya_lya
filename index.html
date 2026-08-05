@@ -493,5 +493,185 @@
     }
   });
 </script>
+<!-- Модальное окно записи -->
+<div class="modal" id="bookingModal">
+  <div class="modal-content">
+    <button class="modal-close" onclick="closeModal('bookingModal')">×</button>
+    <h2>📅 Запись на посещение</h2>
+    <form id="bookingForm">
+      <div class="form-group">
+        <label>Выберите услугу:</label>
+        <select id="bService" required>
+          <option value="">-- Выберите услугу --</option>
+          <option value="Свободная игра (будни)" data-price="300">Свободная игра (будни) — 300 ₽/час</option>
+          <option value="Свободная игра (выходные)" data-price="350">Свободная игра (выходные) — 350 ₽/час</option>
+          <option value="Акция 1+1 час" data-price="550">Акция недели: 1+1 час — 550 ₽</option>
+          <option value="Абонемент 5 посещений" data-price="1300">Абонемент (5 посещений) — 1300 ₽</option>
+          <option value="День рождения" data-price="8000">День рождения (2 часа) — от 8000 ₽</option>
+        </select>
+        <div id="selectedPrice" style="margin-top:8px; font-size:18px; font-weight:bold; color:var(--mint);"></div>
+      </div>
+      <div class="form-group"><label>Имя родителя:</label><input type="text" id="bName" required placeholder="Ваше имя"></div>
+      <div class="form-group"><label>Телефон:</label><input type="tel" id="bPhone" required placeholder="+7 (___) ___-__-__"></div>
+      <div class="form-group"><label>Имя и возраст ребёнка:</label><input type="text" id="bChild" required placeholder="Например: Маша, 5 лет"></div>
+      <div class="form-group"><label>Дата:</label><input type="date" id="bDate" required></div>
+      <div class="form-group"><label>Время:</label><input type="time" id="bTime" min="08:00" max="20:00" required></div>
+      <div class="form-group"><label>Количество детей:</label><input type="number" id="bKids" min="1" max="15" value="1" required></div>
+      <div class="form-group"><label>Комментарий:</label><textarea id="bComment" rows="2" placeholder="Особые пожелания..."></textarea></div>
+      <button type="submit" class="btn-primary" style="width: 100%;">Подтвердить запись</button>
+      
+      <!-- КНОПКА ОПЛАТЫ СКРЫТА -->
+      <div style="margin-top: 15px; text-align: center; display: none !important;">
+        <button type="button" class="btn-primary" style="width: 100%; background: linear-gradient(45deg, #667eea, #764ba2);" onclick="payOnline()">Оплатить онлайн</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Модальное окно личного кабинета -->
+<div class="modal" id="accountModal">
+  <div class="modal-content">
+    <button class="modal-close" onclick="closeModal('accountModal')">×</button>
+    <h2>👤 Личный кабинет</h2>
+    <div id="loginBlock">
+      <p style="margin-bottom: 15px;">Введите телефон:</p>
+      <div class="form-group"><input type="tel" id="loginPhone" placeholder="+7 (___) ___-__-__"></div>
+      <button class="btn-primary" style="width: 100%;" onclick="loginUser()">Войти</button>
+    </div>
+    <div id="bonusBlock" style="display: none;">
+      <div class="bonus-card">
+        <div style="font-size: 14px;">Ваш баланс</div>
+        <div class="bonus-card-balance"><span id="userBalance">0</span> 🎁</div>
+        <div style="font-size: 13px; margin-top: 5px;">Телефон: <span id="userPhone"></span></div>
+      </div>
+      <h3 style="margin: 20px 0 10px;">📋 История</h3>
+      <div id="historyList"></div>
+      <button class="btn-bonus" style="width: 100%; margin-top: 20px;" onclick="logoutUser()">Выйти</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = {
+    async createBooking(data) { const res = await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return res.json(); },
+    async login(phone) { const res = await fetch('/api/users/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone }) }); return res.json(); }
+  };
+  let currentBooking = { service: '', price: 0 };
+  window._currentUser = null; window._currentHistory = [];
+
+  function openModal(id) { document.getElementById(id).classList.add('active'); if (id === 'accountModal') refreshAccount(); }
+  function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+  window.onclick = (e) => { if (e.target.classList.contains('modal')) e.target.classList.remove('active'); };
+  function toggleMenu() { document.getElementById('navMenu').classList.toggle('open'); }
+  document.querySelectorAll('.nav-menu a').forEach(a => { a.addEventListener('click', () => { document.getElementById('navMenu').classList.remove('open'); }); });
+
+  function openBooking(service, price) {
+    service = service || ''; price = price || 0;
+    const serviceSelect = document.getElementById('bService');
+    const dateInput = document.getElementById('bDate');
+    const isWeekend = (new Date(dateInput.value || new Date()).getDay() === 0 || new Date(dateInput.value || new Date()).getDay() === 6);
+    for (let i = 0; i < serviceSelect.options.length; i++) {
+      const opt = serviceSelect.options[i].value.toLowerCase();
+      serviceSelect.options[i].style.display = ((opt.includes('выходн') && !isWeekend) || (opt.includes('будн') && isWeekend)) ? 'none' : '';
+    }
+    let found = false;
+    for (let i = 0; i < serviceSelect.options.length; i++) {
+      if (serviceSelect.options[i].value === service && serviceSelect.options[i].style.display !== 'none') { serviceSelect.selectedIndex = i; found = true; break; }
+    }
+    if (!found) { for (let i = 0; i < serviceSelect.options.length; i++) { if (serviceSelect.options[i].style.display !== 'none' && serviceSelect.options[i].value) { serviceSelect.selectedIndex = i; break; } } }
+    updatePriceDisplay();
+    dateInput.min = new Date().toISOString().split('T')[0];
+    if (!dateInput.value) dateInput.value = dateInput.min;
+    openModal('bookingModal');
+  }
+
+  function updatePriceDisplay() {
+    const serviceSelect = document.getElementById('bService');
+    const selectedOption = serviceSelect.options[serviceSelect.selectedIndex];
+    const priceDisplay = document.getElementById('selectedPrice');
+    if (selectedOption && selectedOption.value) {
+      currentBooking = { service: selectedOption.value, price: parseInt(selectedOption.getAttribute('data-price')) };
+      priceDisplay.textContent = 'Стоимость: ' + currentBooking.price + ' ₽';
+    } else { currentBooking = { service: '', price: 0 }; priceDisplay.textContent = ''; }
+  }
+  document.getElementById('bService').addEventListener('change', updatePriceDisplay);
+  document.getElementById('bDate').addEventListener('change', function() { openBooking(document.getElementById('bService').value, currentBooking.price); });
+
+  document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const serviceSelect = document.getElementById('bService');
+    if (!serviceSelect.value) { showToast('⚠️ Выберите услугу', 'warn'); return; }
+    const data = { service: serviceSelect.value, price: parseInt(serviceSelect.options[serviceSelect.selectedIndex].getAttribute('data-price')), name: document.getElementById('bName').value, phone: document.getElementById('bPhone').value, child: document.getElementById('bChild').value, date: document.getElementById('bDate').value, time: document.getElementById('bTime').value, kids: parseInt(document.getElementById('bKids').value), comment: document.getElementById('bComment').value };
+    try {
+      const result = await API.createBooking(data);
+      closeModal('bookingModal');
+      showToast('✅ Запись подтверждена!' + (result.booking && result.booking.bonusEarned ? ' +' + result.booking.bonusEarned + ' бонусов' : ''));
+      document.getElementById('bookingForm').reset(); document.getElementById('selectedPrice').textContent = '';
+    } catch (err) { showToast('⚠️ Ошибка при создании записи', 'warn'); }
+  });
+
+  async function loginUser() {
+    const phone = document.getElementById('loginPhone').value.trim();
+    if (!phone) { showToast('⚠️ Введите телефон', 'warn'); return; }
+    try {
+      const result = await API.login(phone);
+      if (result.error) { showToast('⚠️ ' + result.error, 'warn'); return; }
+      showToast(result.isNew ? '🎉 Добро пожаловать! +100 бонусов' : '👋 С возвращением!');
+      window._currentUser = result.user; window._currentHistory = result.history; refreshAccount();
+    } catch (err) { showToast('⚠️ Ошибка входа', 'warn'); }
+  }
+  function logoutUser() { window._currentUser = null; window._currentHistory = []; refreshAccount(); }
+  function refreshAccount() {
+    const loginBlock = document.getElementById('loginBlock'); const bonusBlock = document.getElementById('bonusBlock');
+    if (!window._currentUser) { loginBlock.style.display = 'block'; bonusBlock.style.display = 'none'; return; }
+    loginBlock.style.display = 'none'; bonusBlock.style.display = 'block';
+    document.getElementById('userBalance').textContent = window._currentUser.balance;
+    document.getElementById('userPhone').textContent = window._currentUser.phone;
+    const hist = document.getElementById('historyList');
+    if (!window._currentHistory || window._currentHistory.length === 0) { hist.innerHTML = '<p style="text-align:center; color:#999;">История пуста</p>'; return; }
+    hist.innerHTML = window._currentHistory.map(h => '<div class="history-item ' + h.type + '"><div><div style="font-weight:500;">' + h.description + '</div></div><div style="font-weight:bold; color:' + (h.type==='plus' ? 'var(--mint)' : 'var(--pink)') + '">' + (h.type==='plus' ? '+' : '-') + h.amount + ' 🎁</div></div>').join('');
+  }
+
+  function showToast(msg, type) { const t = document.createElement('div'); t.className = 'toast'; if (type === 'warn') t.style.background = 'var(--yellow)'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 3000); }
+  document.querySelectorAll('a[href^="#"]').forEach(a => { a.addEventListener('click', e => { e.preventDefault(); const target = document.querySelector(a.getAttribute('href')); if (target) target.scrollIntoView({ behavior: 'smooth' }); }); });
+
+  async function payOnline() {
+    const serviceSelect = document.getElementById('bService'); const selectedOption = serviceSelect.options[serviceSelect.selectedIndex];
+    if (!selectedOption || !selectedOption.value) { showToast('⚠️ Сначала выберите услугу', 'warn'); return; }
+    const amount = parseInt(selectedOption.getAttribute('data-price'));
+    const tempBooking = { service: selectedOption.value, price: amount, name: document.getElementById('bName').value || 'Гость', phone: document.getElementById('bPhone').value || '+70000000000', child: document.getElementById('bChild').value || 'Ребёнок', date: document.getElementById('bDate').value || new Date().toISOString().split('T')[0], time: document.getElementById('bTime').value || '12:00', kids: parseInt(document.getElementById('bKids').value) || 1, comment: document.getElementById('bComment').value || '' };
+    try {
+      const res = await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tempBooking) });
+      const result = await res.json();
+      if (result.success && result.booking) {
+        const paymentRes = await fetch('/api/create-payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: result.booking.id, amount: amount, description: `Оплата: ${tempBooking.service}` }) });
+        const paymentData = await paymentRes.json();
+        if (paymentData.success && paymentData.confirmation_url) { window.location.href = paymentData.confirmation_url; }
+      }
+    } catch (err) { showToast('⚠️ Ошибка при оплате', 'warn'); }
+  }
+</script>
+
+<!-- QR-код для быстрой записи -->
+<section style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); padding: 50px 20px; text-align: center;">
+  <div class="container">
+    <h2 style="color: var(--mint); margin-bottom: 15px; font-size: 28px;">📱 Быстрая запись</h2>
+    <p style="font-size: 16px; color: #666; margin-bottom: 25px;">Наведите камеру телефона на QR-код, чтобы записаться онлайн</p>
+    <div style="display: inline-block; background: white; padding: 25px; border-radius: 20px; box-shadow: var(--shadow);">
+      <div id="qrcode" style="width: 200px; height: 200px; margin: 0 auto;"></div>
+      <p style="margin-top: 15px; font-size: 14px; color: #888; font-weight: 600;">🎀 Ляля — детская комната</p>
+    </div>
+  </div>
+</section>
+
+<script>
+  window.addEventListener('DOMContentLoaded', function() {
+    const qrContainer = document.getElementById('qrcode');
+    if (qrContainer && typeof QRCode !== 'undefined') {
+      qrContainer.innerHTML = '';
+      new QRCode(qrContainer, { text: 'https://lyaalyaa.ru', width: 200, height: 200, colorDark: '#6bcb77', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H });
+    }
+  });
+</script>
 </body>
 </html>

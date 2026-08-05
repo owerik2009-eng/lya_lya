@@ -893,7 +893,7 @@ async function payOnline() {
       Наведите камеру телефона на QR-код, чтобы записаться онлайн
     </p>
     <div style="display: inline-block; background: white; padding: 25px; border-radius: 20px; box-shadow: var(--shadow);">
-      <canvas id="qrcode" style="display: block; margin: 0 auto;"></canvas>
+      <div id="qrcode" style="width: 200px; height: 200px; margin: 0 auto;"></div>
       <p style="margin-top: 15px; font-size: 14px; color: #888; font-weight: 600;">
         🎀 Ляля — детская комната
       </p>
@@ -907,18 +907,22 @@ async function payOnline() {
 
 <script>
   // Генерация QR-кода
-  if (typeof QRCode !== 'undefined') {
-    QRCode.toCanvas(document.getElementById('qrcode'), 'https://lyaalyaa.ru', {
-      width: 200,
-      margin: 2,
-      color: {
-        dark: '#6bcb77',
-        light: '#ffffff'
-      }
-    }, function (error) {
-      if (error) console.error('Ошибка QR:', error);
-    });
-  }
+  window.addEventListener('DOMContentLoaded', function() {
+    const qrContainer = document.getElementById('qrcode');
+    if (qrContainer && typeof QRCode !== 'undefined') {
+      qrContainer.innerHTML = '';
+      new QRCode(qrContainer, {
+        text: 'https://lyaalyaa.ru',
+        width: 200,
+        height: 200,
+        colorDark: '#6bcb77',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    } else {
+      console.error('QRCode библиотека не загрузилась');
+    }
+  });
 </script>
 <!-- QR-код для быстрой записи -->
 <section style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); padding: 50px 20px; text-align: center;">
@@ -941,10 +945,13 @@ async function payOnline() {
 </section>
 
 <script>
-  // Генерация QR-кода (работает через Cloudflare CDN)
+  // Генерация QR-кода (правильный синтаксис для qrcodejs)
   window.addEventListener('DOMContentLoaded', function() {
     const qrContainer = document.getElementById('qrcode');
     if (qrContainer && typeof QRCode !== 'undefined') {
+      // Очищаем контейнер на случай повторной генерации
+      qrContainer.innerHTML = '';
+      
       new QRCode(qrContainer, {
         text: 'https://lyaalyaa.ru',
         width: 200,

@@ -408,9 +408,12 @@ app.get('/api/payment-status/:paymentId', async (req, res) => {
 });
 
 // ===== Запуск =====
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`\n🎀 «Ляля» запущена: http://localhost:${PORT}`);
-  console.log(`📱 Клиенты: http://localhost:${PORT}/index.html`);
-  console.log(`🔐 Админ: http://localhost:${PORT}/admin.html\n`);
+const port = process.env.PORT || 3000;
+
+// Для работы за обратным прокси (Amvera)
+app.set('trust proxy', true);
+
+app.listen(port, '0.0.0.0', () => {
+  console.log(`🎀 «Ляля» запущена: http://localhost:${port}`);
+  console.log(`📱 HTTPS обрабатывается Amvera`);
 });

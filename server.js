@@ -315,7 +315,10 @@ app.post('/api/create-payment', async (req, res) => {
     }
 
     const paymentId = uuidv4();
-    const returnUrl = `http://localhost:${process.env.PORT || 3000}/payment-success.html?bookingId=${bookingId}&paymentId=${paymentId}`;
+    // Определяем реальный домен (https://lyaalyaa.ru) или localhost для тестов
+const protocol = req.protocol; // 'https' или 'http'
+const host = req.get('host');  // 'lyaalyaa.ru' или 'localhost:3000'
+const returnUrl = `${protocol}://${host}/payment-success.html?bookingId=${bookingId}&paymentId=${paymentId}`;
 
     // Создаём платёж в ЮKassa
     const response = await fetch('https://api.yookassa.ru/v3/payments', {
